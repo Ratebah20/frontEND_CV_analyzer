@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import JobService, { JobPosition } from "@/app/services/job-service"
+import DepartmentService, { Department } from "@/services/DepartmentService"
 
 interface ModifierOffreProps {
   jobId: string | number;
@@ -20,63 +21,59 @@ export default function ModifierOffre({ jobId }: ModifierOffreProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState<JobPosition>({
+  const [formData, setFormData] = useState<Partial<JobPosition>>({
     title: "",
     description: "",
     requirements: "",
-    department: "",
+    department_id: 0,
+    department_name: "",
     is_active: true
   });
   
-  // Liste des départements disponibles
-  const departments = [
-    "Informatique",
-    "Marketing",
-    "Finance",
-    "Ressources Humaines",
-    "Recherche et Développement",
-    "Ventes",
-    "Juridique",
-    "Production",
-    "Logistique"
-  ];
+  // État pour stocker les départements chargés depuis l'API
+  const [departments, setDepartments] = useState<Department[]>([]);
   
   // Style personnalisé pour les champs du formulaire
   const inputStyle = "bg-zinc-900 border border-zinc-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-75 ease-in-out text-white";
   const textareaStyle = "bg-zinc-900 border border-zinc-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-75 ease-in-out resize-none text-white";
   const labelStyle = "text-sm font-medium text-zinc-300 mb-1 block";
   
+  // Charger les départements
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const deptData = await DepartmentService.getDepartments();
+        setDepartments(deptData);
+      } catch (error) {
+        console.error("Erreur lors du chargement des départements:", error);
+      }
+    };
+    
+    fetchDepartments();
+  }, []);
+
   // Charger les données de l'offre
   useEffect(() => {
     const fetchJobData = async () => {
       try {
         setLoading(true);
-        // S'assurer que jobId est converti en nombre
-        const id = Number(jobId);
-        if (isNaN(id)) {
-          throw new Error("ID d'offre invalide");
-        }
+        // Récupérer les départements
+        const depts = await DepartmentService.getDepartments();
+        setDepartments(depts);
         
-        const data = await JobService.getJobById(id);
-        
-        // Log pour debug
-        console.log("Données de l'offre:", data);
-        
-        if (data) {
-          setFormData(data);
-        } else {
-          console.error("Offre non trouvée");
+        if (jobId && jobId !== 'new') {
+          // Récupérer l'offre existante
+          const job = await JobService.getJobById(Number(jobId));
+          setFormData(job);
         }
       } catch (error) {
-        console.error("Erreur lors du chargement de l'offre:", error);
+        console.error('Erreur lors du chargement des données:', error);
       } finally {
         setLoading(false);
       }
     };
     
-    if (jobId) {
-      fetchJobData();
-    }
+    fetchJobData();
   }, [jobId]);
   
   // Gérer les changements des champs du formulaire
@@ -88,11 +85,15 @@ export default function ModifierOffre({ jobId }: ModifierOffreProps) {
     }));
   };
   
-  // Gérer les changements du menu déroulant
-  const handleSelectChange = (value: string, name: string) => {
+  // Gérer les changements du menu déroulant pour les départements
+  const handleDepartmentChange = (departmentId: string) => {
+    const id = parseInt(departmentId, 10);
+    const selectedDept = departments.find(dept => dept.id === id);
+    
     setFormData((prev) => ({
       ...prev,
-      [name]: value
+      department_id: id,
+      department_name: selectedDept ? selectedDept.name : ''
     }));
   };
   
@@ -107,35 +108,36 @@ export default function ModifierOffre({ jobId }: ModifierOffreProps) {
   // Soumettre le formulaire
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validation de base
-    if (!formData.title || !formData.description || !formData.department) {
-      alert("Veuillez remplir tous les champs obligatoires");
-      return;
-    }
+    setIsSubmitting(true);
     
     try {
-      setIsSubmitting(true);
-      
-      // S'assurer que jobId est converti en nombre
-      const id = Number(jobId);
-      if (isNaN(id)) {
-        throw new Error("ID d'offre invalide");
+      // S'assurer que les données sont valides
+      if (!formData.title || !formData.description || !formData.department_id) {
+        alert('Veuillez remplir tous les champs obligatoires');
+        setIsSubmitting(false);
+        return;
       }
       
-      const response = await JobService.updateJob(id, {
-        ...formData,
-        is_active: formData.is_active
-      });
+      if (jobId && jobId !== 'new') {
+        // Mise à jour d'une offre existante
+        await JobService.updateJob(Number(jobId), formData);
+      } else {
+        // Création d'une nouvelle offre
+        // Pour la création, nous devons fournir les champs obligatoires
+        const jobDataToCreate = {
+          title: formData.title || '',
+          description: formData.description || '',
+          requirements: formData.requirements || '',
+          department_id: formData.department_id || 0,
+          is_active: formData.is_active !== undefined ? formData.is_active : true
+        };
+        await JobService.createJob(jobDataToCreate);
+      }
       
-      console.log("Offre mise à jour avec succès:", response);
-      
-      // Rediriger vers la liste des offres
-      router.push("/gestion-offres");
+      // Redirection vers la liste des offres
+      router.push('/gestion-offres');
     } catch (error) {
-      console.error("Erreur lors de la mise à jour de l'offre:", error);
-      alert("Une erreur est survenue lors de la mise à jour de l'offre. Veuillez réessayer.");
-    } finally {
+      console.error('Erreur lors de la sauvegarde:', error);
       setIsSubmitting(false);
     }
   };
@@ -209,13 +211,13 @@ export default function ModifierOffre({ jobId }: ModifierOffreProps) {
                 </div>
                 
                 <div>
-                  <Label htmlFor="department" className={labelStyle}>Département</Label>
+                  <Label htmlFor="department_id" className={labelStyle}>Département</Label>
                   <Select 
-                    value={formData.department} 
-                    onValueChange={(value) => handleSelectChange(value, "department")}
+                    value={formData.department_id ? formData.department_id.toString() : ""} 
+                    onValueChange={handleDepartmentChange}
                   >
                     <SelectTrigger 
-                      id="department" 
+                      id="department_id" 
                       className={`${inputStyle} w-full`}
                     >
                       <SelectValue placeholder="Sélectionnez un département" />
@@ -223,11 +225,11 @@ export default function ModifierOffre({ jobId }: ModifierOffreProps) {
                     <SelectContent className="bg-zinc-900 border border-zinc-700 text-white">
                       {departments.map((dept) => (
                         <SelectItem 
-                          key={dept} 
-                          value={dept}
+                          key={dept.id} 
+                          value={dept.id.toString()}
                           className="hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer"
                         >
-                          {dept}
+                          {dept.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

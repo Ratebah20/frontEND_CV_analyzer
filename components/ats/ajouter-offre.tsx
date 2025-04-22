@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,33 +8,42 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import JobService from "@/app/services/job-service"
+import DepartmentService, { Department } from "@/services/DepartmentService"
 
 export default function AjouterOffre() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     requirements: "",
-    department: "",
+    department_id: 0,
     is_active: true
   });
   
-  // Liste des départements disponibles
-  const departments = [
-    "Informatique",
-    "Marketing",
-    "Finance",
-    "Ressources Humaines",
-    "Recherche et Développement",
-    "Ventes",
-    "Juridique",
-    "Production",
-    "Logistique"
-  ];
+  // État pour stocker les départements chargés depuis l'API
+  const [departments, setDepartments] = useState<Department[]>([]);
+  
+  // Charger les départements depuis l'API
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        setIsLoading(true);
+        const deptData = await DepartmentService.getDepartments();
+        setDepartments(deptData);
+      } catch (error) {
+        console.error("Erreur lors du chargement des départements:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchDepartments();
+  }, []);
   
   // Style personnalisé pour les champs du formulaire
   const inputStyle = "bg-zinc-900 border border-zinc-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-75 ease-in-out text-white";
@@ -51,11 +60,12 @@ export default function AjouterOffre() {
     }));
   };
   
-  // Gérer les changements du menu déroulant
-  const handleSelectChange = (value: string, name: string) => {
+  // Gérer les changements du menu déroulant pour les départements
+  const handleDepartmentChange = (departmentId: string) => {
+    const id = parseInt(departmentId, 10);
     setFormData((prev) => ({
       ...prev,
-      [name]: value
+      department_id: id
     }));
   };
   
@@ -72,7 +82,7 @@ export default function AjouterOffre() {
     e.preventDefault();
     
     // Validation de base
-    if (!formData.title || !formData.description || !formData.department) {
+    if (!formData.title || !formData.description || !formData.department_id) {
       alert("Veuillez remplir tous les champs obligatoires");
       return;
     }
@@ -160,29 +170,36 @@ export default function AjouterOffre() {
               </div>
               
               <div>
-                <Label htmlFor="department" className={labelStyle}>Département</Label>
-                <Select 
-                  value={formData.department} 
-                  onValueChange={(value) => handleSelectChange(value, "department")}
-                >
-                  <SelectTrigger 
-                    id="department" 
-                    className={`${inputStyle} w-full`}
+                <Label htmlFor="department_id" className={labelStyle}>Département</Label>
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-3 border border-zinc-700 rounded bg-zinc-900">
+                    <Loader2 className="h-5 w-5 animate-spin text-blue-500 mr-2" />
+                    <span className="text-zinc-400">Chargement des départements...</span>
+                  </div>
+                ) : (
+                  <Select 
+                    value={formData.department_id ? formData.department_id.toString() : ""} 
+                    onValueChange={handleDepartmentChange}
                   >
-                    <SelectValue placeholder="Sélectionnez un département" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border border-zinc-700 text-white">
-                    {departments.map((dept) => (
-                      <SelectItem 
-                        key={dept} 
-                        value={dept}
-                        className="hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer"
-                      >
-                        {dept}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    <SelectTrigger 
+                      id="department_id" 
+                      className={`${inputStyle} w-full`}
+                    >
+                      <SelectValue placeholder="Sélectionnez un département" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border border-zinc-700 text-white">
+                      {departments.map((dept) => (
+                        <SelectItem 
+                          key={dept.id} 
+                          value={dept.id.toString()}
+                          className="hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer"
+                        >
+                          {dept.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 <p className="text-xs text-zinc-500 mt-1">
                   Département auquel ce poste est rattaché. Important pour le filtrage par les managers.
                 </p>

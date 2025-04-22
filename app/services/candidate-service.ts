@@ -55,7 +55,14 @@ const CandidateService = {
   // Mettre à jour le statut d'un candidat
   updateCandidateStatus: async (id: number, status: string): Promise<boolean> => {
     try {
-      await axios.put(`${API_URL}/applications/${id}/status`, { status }, getAuthHeaders());
+      console.log(`Mise à jour du statut pour l'application ${id} vers ${status}`);
+      // Assurez-vous que le status est envoyé dans le format attendu par l'API
+      const response = await axios.put(
+        `${API_URL}/applications/${id}/status`, 
+        { status: Number(status) }, // Convertir en nombre car l'API attend un nombre
+        getAuthHeaders()
+      );
+      console.log('Réponse de mise à jour du statut:', response.data);
       return true;
     } catch (error) {
       console.error(`Erreur lors de la mise à jour du statut du candidat ${id}:`, error);
@@ -82,6 +89,19 @@ const CandidateService = {
     } catch (error) {
       console.error(`Erreur lors de la récupération des détails du candidat ${candidateId}:`, error);
       return null;
+    }
+  },
+  
+  // Récupérer les candidatures par département
+  getCandidatesByDepartment: async (departmentId: number): Promise<Candidate[]> => {
+    try {
+      // L'API backend filtre déjà les candidatures par département de l'utilisateur
+      // Grâce au token JWT
+      const response = await axios.get(`${API_URL}/applications/department/${departmentId}`, getAuthHeaders());
+      return response.data;
+    } catch (error) {
+      console.error(`Erreur lors de la récupération des candidats du département ${departmentId}:`, error);
+      return [];
     }
   }
 };

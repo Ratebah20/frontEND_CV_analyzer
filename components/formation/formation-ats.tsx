@@ -205,12 +205,12 @@ export default function FormationATS() {
             <Button 
               className="flex items-center justify-center bg-amber-500 hover:bg-amber-600 h-12" 
               size="lg"
-              // Pour l'instant, ce bouton ne fait rien comme demandé
+              onClick={() => window.location.href = '/gestion-entretiens'}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              Nouvelles candidatures
+              Demandes d'entretien
             </Button>
           </div>
         </CardContent>

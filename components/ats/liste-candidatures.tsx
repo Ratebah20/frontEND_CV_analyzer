@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import CandidateService, { Candidate } from "@/app/services/candidate-service"
-import { Loader2, ArrowLeft } from "lucide-react"
+import { Loader2, ArrowLeft, AlertTriangle } from "lucide-react"
 import { useRouter } from "next/navigation"
+import AuthService, { User } from "@/app/services/auth-service"
 
 // Statuts pour les badges
 const statusMap: Record<string | number, { label: string, color: string }> = {
@@ -46,13 +47,52 @@ export default function ListeCandidatures() {
   
   const [postes, setPostes] = useState<string[]>([]);
   const [statuts, setStatuts] = useState<string[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [error, setError] = useState<string | null>(null);
   
-  // Charger les données
+  // Récupérer l'utilisateur courant
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const user = await AuthService.getCurrentUser();
+        setCurrentUser(user);
+        console.log("Utilisateur connecté:", user);
+      } catch (error) {
+        console.error("Erreur lors de la récupération de l'utilisateur:", error);
+        setError("Impossible de récupérer les informations de l'utilisateur.");
+      }
+    };
+    
+    fetchCurrentUser();
+  }, []);
+  
+  // Charger les données filtrées par département si nécessaire
   useEffect(() => {
     const fetchApplications = async () => {
       try {
         setLoading(true);
-        const data = await CandidateService.getAllCandidates();
+        setError(null);
+        
+        let data: Candidate[] = [];
+        
+        // Si l'utilisateur est RH, il voit toutes les candidatures
+        // Sinon, il ne voit que celles de son département
+        if (currentUser) {
+          if (currentUser.is_hr) {
+            console.log("Utilisateur RH: chargement de toutes les candidatures");
+            data = await CandidateService.getAllCandidates();
+          } else if (currentUser.department_id) {
+            console.log(`Manager du département ${currentUser.department_id}: chargement des candidatures filtrées`);
+            data = await CandidateService.getCandidatesByDepartment(currentUser.department_id);
+          } else {
+            console.error("Utilisateur sans département attribué");
+            setError("Votre compte n'est pas associé à un département. Veuillez contacter un administrateur.");
+            data = [];
+          }
+        } else {
+          console.log("Aucun utilisateur: attente de l'authentification");
+          return;
+        }
         
         // Log pour debug
         console.log("Données des candidatures:", data);
@@ -75,13 +115,17 @@ export default function ListeCandidatures() {
         }
       } catch (error) {
         console.error("Erreur lors du chargement des candidatures:", error);
+        setError("Impossible de charger les candidatures. Veuillez réessayer plus tard.");
       } finally {
         setLoading(false);
       }
     };
     
-    fetchApplications();
-  }, []);
+    // Ne charger les candidatures que lorsque l'utilisateur est disponible
+    if (currentUser) {
+      fetchApplications();
+    }
+  }, [currentUser]);
   
   // Filtrer les candidatures
   useEffect(() => {
@@ -128,7 +172,11 @@ export default function ListeCandidatures() {
       
       <Card>
         <CardHeader>
-          <CardTitle>Filtres</CardTitle>
+          <CardTitle>
+            {currentUser?.is_hr 
+              ? "Toutes les candidatures" 
+              : `Candidatures pour le département ${currentUser?.department_name || ''}`}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
@@ -184,6 +232,13 @@ export default function ListeCandidatures() {
           <CardTitle>Liste des candidatures</CardTitle>
         </CardHeader>
         <CardContent>
+          {error && (
+            <div className="flex items-center p-4 mb-4 text-amber-800 rounded-lg bg-amber-50 dark:bg-gray-800 dark:text-amber-400">
+              <AlertTriangle className="h-5 w-5 mr-2" />
+              <span className="text-sm">{error}</span>
+            </div>
+          )}
+          
           {loading ? (
             <div className="flex justify-center items-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />

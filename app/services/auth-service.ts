@@ -12,7 +12,8 @@ export interface User {
   username: string;
   email: string;
   role_id: number;
-  department: string;
+  department_id: number;
+  department_name: string;
   is_hr: boolean;
 }
 

@@ -31,13 +31,22 @@ const LoginForm: React.FC = () => {
     
     try {
       // Connexion
-      await AuthService.login(data);
+      const response = await AuthService.login(data);
       
       // Mettre à jour le contexte utilisateur
       await refreshUser();
       
-      // Redirection
-      router.push('/');
+      // Récupérer l'utilisateur pour vérifier son rôle
+      const user = response.user;
+      
+      // Redirection en fonction du rôle
+      if (user.is_hr) {
+        // Rediriger les RH vers l'interface de gestion des candidatures
+        router.push('/candidatures');
+      } else {
+        // Rediriger les managers vers leur tableau de bord
+        router.push('/manager-dashboard');
+      }
     } catch (err: any) {
       setError(
         err.response?.data?.message || 

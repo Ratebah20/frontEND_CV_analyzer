@@ -105,7 +105,7 @@ export default function GestionOffres() {
                     className={!job.is_active ? "opacity-60 bg-zinc-900/30" : ""}
                   >
                       <TableCell>{job.title}</TableCell>
-                      <TableCell>{job.department || '???'}</TableCell>
+                      <TableCell>{job.department_name || '???'}</TableCell>
                       <TableCell>
                         <Badge className={job.is_active ? "bg-green-500" : "bg-gray-500"}>
                           {job.is_active ? "Actif" : "Inactif"}
@@ -118,8 +118,7 @@ export default function GestionOffres() {
                       </TableCell>
                       <TableCell>
                         <Badge className="bg-blue-500">
-                          {/* Ceci serait normalement calculé côté serveur */}
-                          {Math.floor(Math.random() * 5) + 1} candidature(s)
+                          {job.application_count || 0} candidature(s)
                         </Badge>
                       </TableCell>
                       <TableCell>
